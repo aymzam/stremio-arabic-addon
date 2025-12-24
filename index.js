@@ -74,8 +74,8 @@ builder.defineStreamHandler(async ({ id }) => {
 
 /* ---------- SERVER ---------- */
 const server = require("http").createServer(builder.getInterface());
-const PORT = 7777;
-server.listen(PORT, () =>
-  console.log(`Addon running at http://localhost:${PORT}`)
-);
+const PORT = process.env.PORT || 7777;
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`Addon running at http://0.0.0.0:${PORT}`);
+});
 
