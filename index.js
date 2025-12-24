@@ -1,0 +1,81 @@
+const { addonBuilder } = require("stremio-addon-sdk");
+const axios = require("axios");
+const cheerio = require("cheerio");
+
+const BASE_URL = "https://a.asd.homes";
+const CATEGORY_URL = `${BASE_URL}/category/arabic-movies-8/`;
+
+const manifest = {
+  id: "org.asd.arabic.movies",
+  version: "1.0.0",
+  name: "Arabic Movies (asd.homes)",
+  description: "Arabic movies catalog from asd.homes",
+  resources: ["catalog", "stream"],
+  types: ["movie"],
+  catalogs: [
+    {
+      type: "movie",
+      id: "arabic-movies",
+      name: "Arabic Movies"
+    }
+  ]
+};
+
+const builder = new addonBuilder(manifest);
+
+/* ---------- CATALOG ---------- */
+builder.defineCatalogHandler(async () => {
+  const res = await axios.get(CATEGORY_URL);
+  const $ = cheerio.load(res.data);
+
+  const metas = [];
+
+  $(".post").each((_, el) => {
+    const title = $(el).find(".post-title a").text().trim();
+    const link = $(el).find(".post-title a").attr("href");
+    const poster = $(el).find("img").attr("src");
+
+    if (title && link) {
+      metas.push({
+        id: link,
+        type: "movie",
+        name: title,
+        poster
+      });
+    }
+  });
+
+  return { metas };
+});
+
+/* ---------- STREAM ---------- */
+builder.defineStreamHandler(async ({ id }) => {
+  try {
+    const res = await axios.get(id);
+    const $ = cheerio.load(res.data);
+
+    const streams = [];
+
+    $("video source").each((_, el) => {
+      const src = $(el).attr("src");
+      if (src && (src.includes(".mp4") || src.includes(".m3u8"))) {
+        streams.push({
+          title: "Direct Stream",
+          url: src
+        });
+      }
+    });
+
+    return { streams };
+  } catch {
+    return { streams: [] };
+  }
+});
+
+/* ---------- SERVER ---------- */
+const server = require("http").createServer(builder.getInterface());
+const PORT = 7777;
+server.listen(PORT, () =>
+  console.log(`Addon running at http://localhost:${PORT}`)
+);
+
